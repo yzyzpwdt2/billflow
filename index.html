@@ -80,7 +80,7 @@ input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:
     <div class="muted">本月薪資</div>
     <strong id="incomeText">$0</strong>
     <div class="muted">
-      扣除待繳後可用：<span id="availableText">$0</span>
+      扣除本月支出後可用：<span id="availableText">$0</span>
     </div>
   </div>
 
@@ -619,7 +619,7 @@ function render(){
 
  $('availableText').textContent=
   money(
-   income-unpaidSum
+   income-all
   );
 
  fill(
