@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BillFlow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>BillFlow</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--unpaid:#fff7ed;--paid:#ecfdf5}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#151b2b;--text:#f9fafb;--muted:#9ca3af;--line:#293044;--accent:#f9fafb;--accentText:#111827;--unpaid:#2a2119;--paid:#14271f}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;background:var(--bg);color:var(--text)}
+.app{max-width:560px;margin:auto;padding:14px 12px 90px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+h1{font-size:22px;margin:0}.muted{color:var(--muted);font-size:12px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:9px 12px;font:inherit}
+.primary{border:0;background:var(--accent);color:var(--accentText);font-weight:700}.monthbtn{width:38px;height:38px;padding:0}
+.summary{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.metric{background:var(--card);border-radius:15px;padding:11px;border:1px solid var(--line)}
+.metric strong{font-size:21px;display:block;margin-top:3px}.metric.main strong{font-size:27px}
+.income{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:10px 11px;margin-bottom:10px}
+.section{border-radius:16px;padding:10px 11px;margin-bottom:10px;border:1px solid var(--line)}
+.section.unpaid{background:var(--unpaid)}.section.paid{background:var(--paid)}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.section h2{font-size:16px;margin:0}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}
+.check{width:25px;height:25px}.name{font-weight:700;font-size:15px}.sub{font-size:12px;color:var(--muted);margin-top:2px}.amount{font-weight:800;font-size:16px}
+.badge{font-size:10px;padding:2px 6px;border-radius:999px;border:1px solid var(--line);margin-left:5px}
+.empty{padding:12px 0;color:var(--muted);font-size:13px}
+.fab{position:fixed;right:18px;bottom:20px;width:56px;height:56px;border-radius:50%;font-size:28px;border:0;background:var(--accent);color:var(--accentText);box-shadow:0 8px 20px rgba(0,0,0,.22)}
+.sheet{display:none;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px}.sheet.show{display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{font-size:12px;color:var(--muted);display:block;margin:8px 0 4px}
+input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:11px;padding:10px;font:inherit}
+.actions{display:flex;gap:8px;margin-top:12px}.actions .btn{flex:1}.top-actions{display:flex;gap:6px}
+@media(max-width:430px){.summary{grid-template-columns:1fr 1fr}.metric.main{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div><div class="muted">BillFlow</div><h1 id="monthTitle"></h1></div>
+  <div class="top-actions"><button class="btn monthbtn" id="prevMonth">‹</button><button class="btn monthbtn" id="nextMonth">›</button></div>
+</header>
+
+<div class="summary">
+  <div class="metric main"><div class="muted">本月待繳</div><strong id="unpaidTotal">$0</strong><div class="muted" id="unpaidCount"></div></div>
+  <div class="metric"><div class="muted">已繳</div><strong id="paidTotal">$0</strong></div>
+  <div class="metric"><div class="muted">總額</div><strong id="allTotal">$0</strong></div>
+</div>
+
+<div class="income">
+  <div><div class="muted">本月薪資</div><strong id="incomeText">$0</strong><div class="muted">扣除待繳後可用：<span id="availableText">$0</span></div></div>
+  <button class="btn" id="editIncome">修改</button>
+</div>
+
+<div id="incomeSheet" class="sheet">
+  <div class="section-head"><strong>修改薪資</strong><button class="btn" id="closeIncome">關閉</button></div>
+  <label>薪資金額</label><input id="incomeInput" type="number" min="0">
+  <div class="actions"><button class="btn primary" id="saveIncome">儲存</button></div>
+</div>
+
+<section class="section unpaid">
+  <div class="section-head"><div><h2>未繳</h2><div class="muted">依繳款日排序</div></div><button class="btn" id="quickBackup">備份</button></div>
+  <div id="unpaidList"></div>
+</section>
+
+<details class="section paid">
+  <summary><strong>已繳</strong> <span class="muted" id="paidCount"></span></summary>
+  <div id="paidList"></div>
+</details>
+
+<div id="editor" class="sheet">
+  <div class="section-head"><strong id="editorTitle">新增帳單</strong><button class="btn" id="closeEditor">關閉</button></div>
+  <label>名稱</label><input id="billName" placeholder="例如：台新信用卡">
+  <div class="grid2">
+    <div><label>金額</label><input id="billAmount" type="number" min="0"></div>
+    <div><label>繳款日</label><input id="billDay" type="number" min="1" max="31"></div>
+  </div>
+  <div class="grid2">
+    <div><label>類型</label><select id="billType"><option>信用卡</option><option>分期</option><option>固定支出</option><option>臨時支出</option></select></div>
+    <div><label>出帳狀態</label><select id="billStatus"><option>已出帳</option><option>未出帳</option></select></div>
+  </div>
+  <div id="installmentFields" class="grid2" style="display:none">
+    <div><label>目前期數</label><input id="billCurrent" type="number" min="1" value="1"></div>
+    <div><label>總期數</label><input id="billPeriods" type="number" min="1" value="12"></div>
+  </div>
+  <label>備註</label><input id="billNote" placeholder="可留空">
+  <label><input id="billRecurring" type="checkbox" checked style="width:auto"> 每月自動保留</label>
+  <div class="actions"><button class="btn" id="deleteBill" style="display:none">刪除</button><button class="btn primary" id="saveBill">儲存</button></div>
+</div>
+
+<div id="backupSheet" class="sheet">
+  <div class="section-head"><strong>備份 / 還原</strong><button class="btn" id="closeBackup">關閉</button></div>
+  <div class="muted">備份會下載 JSON 檔，日後可以匯入還原。</div>
+  <div class="actions">
+    <button class="btn primary" id="downloadBackup">下載備份</button>
+    <label class="btn" style="text-align:center">匯入備份<input id="importBackup" type="file" accept=".json,application/json" style="display:none"></label>
+  </div>
+</div>
+
+<div class="muted" id="status"></div>
+</div>
+<button class="fab" id="addBill">＋</button>
+
+<script>
+const $=id=>document.getElementById(id);
+const money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
+const key=(y,m)=>`${y}-${String(m).padStart(2,'0')}`;
+const now=new Date();
+
+const defaultTemplates=[
+{id:'t1',name:'台新信用卡',amount:14597,day:2,type:'信用卡',status:'未出帳',recurring:true,note:''},
+{id:'t2',name:'富邦信用卡',amount:3109,day:5,type:'信用卡',status:'已出帳',recurring:true,note:''},
+{id:'t3',name:'機車',amount:8849,day:10,type:'分期',status:'已出帳',recurring:true,current:1,totalPeriods:24,note:''},
+{id:'t4',name:'安泰分期',amount:3293,day:10,type:'分期',status:'已出帳',recurring:true,current:1,totalPeriods:24,note:''},
+{id:'t5',name:'玉山信用卡',amount:1395,day:12,type:'信用卡',status:'未出帳',recurring:true,note:''},
+{id:'t6',name:'中信信用卡',amount:7647,day:15,type:'信用卡',status:'未出帳',recurring:true,note:''},
+{id:'t7',name:'星展（網路）',amount:999,day:29,type:'固定支出',status:'已出帳',recurring:true,note:''}
+];
+
+function freshState(){
+ const y=now.getFullYear(),m=now.getMonth()+1;
+ return {version:1,view:{y,m},incomeByMonth:{[key(y,m)]:0},templates:defaultTemplates,months:{[key(y,m)]:defaultTemplates.map(t=>({...t,id:crypto.randomUUID(),templateId:t.id,paid:false}))}};
+}
+let state;
+try{state=JSON.parse(localStorage.getItem('billflow-v1')||'null')||freshState()}catch{state=freshState()}
+function persist(){localStorage.setItem('billflow-v1',JSON.stringify(state))}
+
+function ensureMonth(y,m){
+ const k=key(y,m);
+ if(!state.months[k]){
+  state.months[k]=state.templates.filter(t=>t.recurring!==false)
+   .filter(t=>!(t.type==='分期'&&(t.current||1)>(t.totalPeriods||999)))
+   .map(t=>({...t,id:crypto.randomUUID(),templateId:t.id,paid:false}));
+  if(state.incomeByMonth[k]==null)state.incomeByMonth[k]=0;
+  persist();
+ }
+ return state.months[k];
+}
+function month(){return ensureMonth(state.view.y,state.view.m)}
+
+function row(b){
+ const el=document.createElement('div');el.className='row';
+ const ck=document.createElement('input');ck.className='check';ck.type='checkbox';ck.checked=b.paid;
+ const info=document.createElement('button');info.className='btn';info.style='border:0;background:transparent;padding:0;text-align:left';
+ const inst=b.type==='分期'?` · ${b.current||1}/${b.totalPeriods||'?'}期`:'';
+ info.innerHTML=`<div class="name">${b.name}<span class="badge">${b.status}</span></div><div class="sub">${state.view.m}/${b.day}${inst}${b.note?` · ${b.note}`:''}</div>`;
+ const amt=document.createElement('button');amt.className='btn amount';amt.style='border:0;background:transparent;padding:0';amt.textContent=money(b.amount);
+ ck.addEventListener('change',()=>togglePaid(b.id,ck.checked));
+ info.addEventListener('click',()=>openEditor(b.id));
+ amt.addEventListener('click',()=>{openEditor(b.id);$('billAmount').focus();$('billAmount').select()});
+ el.append(ck,info,amt);return el;
+}
+function togglePaid(id,val){
+ const b=month().find(x=>x.id===id);if(!b)return;
+ if(b.type==='分期'&&val!==b.paid){
+  const t=state.templates.find(t=>t.id===b.templateId);
+  if(t){
+   if(val&&!b.periodAdvanced){t.current=Math.min((t.current||1)+1,(t.totalPeriods||999)+1);b.periodAdvanced=true}
+   if(!val&&b.periodAdvanced){t.current=Math.max(1,(t.current||2)-1);b.periodAdvanced=false}
+  }
+ }
+ b.paid=val;persist();render();
+}
+function fill(id,items,empty){
+ const box=$(id);box.innerHTML='';
+ if(!items.length){box.innerHTML=`<div class="empty">${empty}</div>`;return}
+ items.slice().sort((a,b)=>a.day-b.day).forEach(b=>box.appendChild(row(b)));
+}
+function render(){
+ const {y,m}=state.view;$('monthTitle').textContent=`${y} 年 ${m} 月`;
+ const bills=month(),paid=bills.filter(b=>b.paid),unpaid=bills.filter(b=>!b.paid);
+ const all=bills.reduce((s,b)=>s+Number(b.amount||0),0),paidSum=paid.reduce((s,b)=>s+Number(b.amount||0),0),unpaidSum=all-paidSum;
+ const income=Number(state.incomeByMonth[key(y,m)]||0);
+ $('unpaidTotal').textContent=money(unpaidSum);$('paidTotal').textContent=money(paidSum);$('allTotal').textContent=money(all);
+ $('unpaidCount').textContent=`${unpaid.length} 筆未繳`;$('paidCount').textContent=`（${paid.length} 筆）`;
+ $('incomeText').textContent=money(income);$('availableText').textContent=money(income-unpaidSum);
+ fill('unpaidList',unpaid,'本月目前沒有未繳項目');fill('paidList',paid,'目前沒有已繳項目');
+}
+function openEditor(id=null){
+ const b=id?month().find(x=>x.id===id):null;state.editingId=id;
+ $('editorTitle').textContent=b?'編輯帳單':'新增帳單';$('billName').value=b?.name||'';$('billAmount').value=b?.amount||'';
+ $('billDay').value=b?.day||'';$('billType').value=b?.type||'信用卡';$('billStatus').value=b?.status||'已出帳';
+ $('billCurrent').value=b?.current||1;$('billPeriods').value=b?.totalPeriods||12;$('billNote').value=b?.note||'';
+ $('billRecurring').checked=b?b.recurring!==false:true;$('deleteBill').style.display=b?'block':'none';toggleInst();
+ $('editor').classList.add('show');$('editor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function toggleInst(){$('installmentFields').style.display=$('billType').value==='分期'?'grid':'none'}
+$('billType').addEventListener('change',toggleInst);
+$('addBill').addEventListener('click',()=>openEditor());
+$('closeEditor').addEventListener('click',()=>{$('editor').classList.remove('show');state.editingId=null});
+$('saveBill').addEventListener('click',()=>{
+ const data={name:$('billName').value.trim(),amount:Number($('billAmount').value),day:Number($('billDay').value),type:$('billType').value,status:$('billStatus').value,current:Number($('billCurrent').value||1),totalPeriods:Number($('billPeriods').value||1),note:$('billNote').value.trim(),recurring:$('billRecurring').checked};
+ if(!data.name||!data.amount||!data.day){$('status').textContent='請填寫名稱、金額與繳款日';return}
+ if(state.editingId){
+  const b=month().find(x=>x.id===state.editingId);Object.assign(b,data);
+  if(b.templateId){const t=state.templates.find(x=>x.id===b.templateId);if(t&&data.recurring)Object.assign(t,data)}
+ }else{
+  const templateId='t'+Date.now();const b={id:crypto.randomUUID(),templateId,paid:false,...data};month().push(b);
+  if(data.recurring)state.templates.push({id:templateId,...data});
+ }
+ persist();$('editor').classList.remove('show');state.editingId=null;render();$('status').textContent='已儲存';
+});
+$('deleteBill').addEventListener('click',()=>{
+ if(!state.editingId)return;const arr=month(),i=arr.findIndex(x=>x.id===state.editingId);if(i<0)return;
+ arr.splice(i,1);persist();$('editor').classList.remove('show');state.editingId=null;render();$('status').textContent='已刪除本月項目';
+});
+function shift(d){let y=state.view.y,m=state.view.m+d;if(m<1){m=12;y--}if(m>12){m=1;y++}state.view={y,m};ensureMonth(y,m);persist();render()}
+$('prevMonth').addEventListener('click',()=>shift(-1));$('nextMonth').addEventListener('click',()=>shift(1));
+$('editIncome').addEventListener('click',()=>{$('incomeInput').value=state.incomeByMonth[key(state.view.y,state.view.m)]||0;$('incomeSheet').classList.add('show')});
+$('closeIncome').addEventListener('click',()=>$('incomeSheet').classList.remove('show'));
+$('saveIncome').addEventListener('click',()=>{state.incomeByMonth[key(state.view.y,state.view.m)]=Number($('incomeInput').value||0);persist();$('incomeSheet').classList.remove('show');render()});
+$('quickBackup').addEventListener('click',()=>$('backupSheet').classList.add('show'));$('closeBackup').addEventListener('click',()=>$('backupSheet').classList.remove('show'));
+$('downloadBackup').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`BillFlow-backup-${key(state.view.y,state.view.m)}.json`;a.click();URL.revokeObjectURL(a.href)});
+$('importBackup').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const imported=JSON.parse(await f.text());if(!imported.months||!imported.templates)throw new Error();state=imported;persist();render();$('status').textContent='備份已還原';$('backupSheet').classList.remove('show')}catch{$('status').textContent='備份檔格式不正確'}});
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
