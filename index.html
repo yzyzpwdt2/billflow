@@ -84,7 +84,7 @@ input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:
   </div>
   <div class="grid2">
     <div><label>類型</label><select id="billType"><option>信用卡</option><option>分期</option><option>固定支出</option><option>臨時支出</option></select></div>
-    <div><label>出帳狀態</label><select id="billStatus"><option>已出帳</option><option>未出帳</option></select></div>
+     <div><label>出帳日</label><input id="billStatementDay" type="number" min="1" max="31" placeholder="例如：20"></div>
   </div>
   <div id="installmentFields" class="grid2" style="display:none">
     <div><label>目前期數</label><input id="billCurrent" type="number" min="1" value="1"></div>
@@ -144,13 +144,29 @@ function ensureMonth(y,m){
  return state.months[k];
 }
 function month(){return ensureMonth(state.view.y,state.view.m)}
+function statementStatus(b){
+  if(!b.statementDay) return b.status || '未出帳';
 
+  const now=new Date();
+  const y=now.getFullYear();
+  const m=now.getMonth()+1;
+
+  if(state.view.y<y || (state.view.y===y && state.view.m<m)){
+    return '已出帳';
+  }
+
+  if(state.view.y>y || (state.view.y===y && state.view.m>m)){
+    return '未出帳';
+  }
+
+  return now.getDate()>=Number(b.statementDay) ? '已出帳' : '未出帳';
+}
 function row(b){
  const el=document.createElement('div');el.className='row';
  const ck=document.createElement('input');ck.className='check';ck.type='checkbox';ck.checked=b.paid;
  const info=document.createElement('button');info.className='btn';info.style='border:0;background:transparent;padding:0;text-align:left';
  const inst=b.type==='分期'?` · ${b.current||1}/${b.totalPeriods||'?'}期`:'';
- info.innerHTML=`<div class="name">${b.name}<span class="badge">${b.status}</span></div><div class="sub">${state.view.m}/${b.day}${inst}${b.note?` · ${b.note}`:''}</div>`;
+ info.innerHTML=`<div class="name">${b.name}<span class="badge">${statementStatus(b)}</span></div><div class="sub">${state.view.m}/${b.day}${inst}${b.note?` · ${b.note}`:''}</div>`;
  const amt=document.createElement('button');amt.className='btn amount';amt.style='border:0;background:transparent;padding:0';amt.textContent=money(b.amount);
  ck.addEventListener('change',()=>togglePaid(b.id,ck.checked));
  info.addEventListener('click',()=>openEditor(b.id));
@@ -186,7 +202,7 @@ function render(){
 function openEditor(id=null){
  const b=id?month().find(x=>x.id===id):null;state.editingId=id;
  $('editorTitle').textContent=b?'編輯帳單':'新增帳單';$('billName').value=b?.name||'';$('billAmount').value=b?.amount||'';
- $('billDay').value=b?.day||'';$('billType').value=b?.type||'信用卡';$('billStatus').value=b?.status||'已出帳';
+ $('billDay').value=b?.day||'';$('billType').value=b?.type||'信用卡';$('billStatementDay').value=b?.statementDay||'';
  $('billCurrent').value=b?.current||1;$('billPeriods').value=b?.totalPeriods||12;$('billNote').value=b?.note||'';
  $('billRecurring').checked=b?b.recurring!==false:true;$('deleteBill').style.display=b?'block':'none';toggleInst();
  $('editor').classList.add('show');$('editor').scrollIntoView({behavior:'smooth',block:'start'});
@@ -196,7 +212,7 @@ $('billType').addEventListener('change',toggleInst);
 $('addBill').addEventListener('click',()=>openEditor());
 $('closeEditor').addEventListener('click',()=>{$('editor').classList.remove('show');state.editingId=null});
 $('saveBill').addEventListener('click',()=>{
- const data={name:$('billName').value.trim(),amount:Number($('billAmount').value),day:Number($('billDay').value),type:$('billType').value,status:$('billStatus').value,current:Number($('billCurrent').value||1),totalPeriods:Number($('billPeriods').value||1),note:$('billNote').value.trim(),recurring:$('billRecurring').checked};
+const data={name:$('billName').value.trim(),amount:Number($('billAmount').value),day:Number($('billDay').value),type:$('billType').value,statementDay:Number($('billStatementDay').value)||null,current:Number($('billCurrent').value||1),totalPeriods:Number($('billPeriods').value||1),note:$('billNote').value.trim(),recurring:$('billRecurring').checked};
  if(!data.name||!data.amount||!data.day){$('status').textContent='請填寫名稱、金額與繳款日';return}
  if(state.editingId){
   const b=month().find(x=>x.id===state.editingId);Object.assign(b,data);
