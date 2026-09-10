@@ -216,26 +216,7 @@ $('editIncome').addEventListener('click',()=>{$('incomeInput').value=state.incom
 $('closeIncome').addEventListener('click',()=>$('incomeSheet').classList.remove('show'));
 $('saveIncome').addEventListener('click',()=>{state.incomeByMonth[key(state.view.y,state.view.m)]=Number($('incomeInput').value||0);persist();$('incomeSheet').classList.remove('show');render()});
 $('quickBackup').addEventListener('click',()=>$('backupSheet').classList.add('show'));$('closeBackup').addEventListener('click',()=>$('backupSheet').classList.remove('show'));
-$('downloadBackup').addEventListener('click', () => {
-  try {
-    const data = JSON.stringify(state, null, 2);
-    const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `BillFlow-backup-${key(state.view.y, state.view.m)}.json`;
-    a.style.display = 'none';
-
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-  } catch (err) {
-    alert('備份失敗：' + err.message);
-  }
-});
+$('downloadBackup').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`BillFlow-backup-${key(state.view.y,state.view.m)}.json`;a.click();URL.revokeObjectURL(a.href)});
 $('importBackup').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const imported=JSON.parse(await f.text());if(!imported.months||!imported.templates)throw new Error();state=imported;persist();render();$('status').textContent='備份已還原';$('backupSheet').classList.remove('show')}catch{$('status').textContent='備份檔格式不正確'}});
 render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
